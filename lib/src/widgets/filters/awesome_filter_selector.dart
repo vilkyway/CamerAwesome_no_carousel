@@ -1,5 +1,4 @@
 import 'package:camerawesome/camerawesome_plugin.dart';
-import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -24,25 +23,8 @@ class AwesomeFilterSelector extends StatefulWidget {
 }
 
 class _AwesomeFilterSelectorState extends State<AwesomeFilterSelector> {
-  final CarouselSliderController _controller = CarouselSliderController();
-  int? _textureId;
   int _selected = 0;
-
-  List<String> get presetsIds =>
-      widget.state.availableFilters!.map((e) => e.id).toList();
-
-  @override
-  void initState() {
-    super.initState();
-
-    _selected = presetsIds.indexOf(widget.state.filter.id);
-
-    widget.state.previewTextureId(0).then((textureId) {
-      setState(() {
-        _textureId = textureId;
-      });
-    });
-  }
+  final List<AwesomeFilter> filters = awesomePresetFiltersList;
 
   @override
   Widget build(BuildContext context) {
@@ -53,43 +35,34 @@ class _AwesomeFilterSelectorState extends State<AwesomeFilterSelector> {
         color: widget.filterListBackgroundColor,
         child: Stack(
           children: [
-            CarouselSlider(
-              options: CarouselOptions(
-                height: 60.0,
-                initialPage: _selected,
-                onPageChanged: (index, reason) {
-                  final filter = awesomePresetFiltersList[index];
-
-                  setState(() {
-                    _selected = index;
-                  });
-
-                  HapticFeedback.selectionClick();
-                  widget.state.setFilter(filter);
-                },
-                enableInfiniteScroll: false,
-                viewportFraction: 0.165,
-              ),
-              carouselController: _controller,
-              items: awesomePresetFiltersList.map((filter) {
-                return Builder(
-                  builder: (BuildContext context) {
-                    return AwesomeBouncingWidget(
+            SizedBox(
+              height: 60,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: filters.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final filter = entry.value;
+                    return GestureDetector(
                       onTap: () {
-                        _controller.animateToPage(
-                          presetsIds.indexOf(filter.id),
-                          curve: Curves.fastLinearToSlowEaseIn,
-                          duration: const Duration(milliseconds: 700),
-                        );
+                        HapticFeedback.selectionClick();
+                        setState(() {
+                          _selected = index;
+                        });
+                        widget.state.setFilter(filter);
                       },
-                      child: _FilterPreview(
-                        filter: filter.preview,
-                        textureId: _textureId,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: _FilterPreview(
+                          filter: filter.preview,
+                          textureId: widget.state.textureId,
+                          isSelected: _selected == index,
+                        ),
                       ),
                     );
-                  },
-                );
-              }).toList(),
+                  }).toList(),
+                ),
+              ),
             ),
             IgnorePointer(
               child: Center(
@@ -99,10 +72,7 @@ class _AwesomeFilterSelectorState extends State<AwesomeFilterSelector> {
                   decoration: BoxDecoration(
                     color: Colors.transparent,
                     borderRadius: const BorderRadius.all(Radius.circular(9)),
-                    border: Border.all(
-                      color: Colors.white,
-                      width: 3,
-                    ),
+                    border: Border.all(color: Colors.white, width: 3),
                   ),
                 ),
               ),
@@ -111,6 +81,7 @@ class _AwesomeFilterSelectorState extends State<AwesomeFilterSelector> {
         ),
       ),
     ];
+
     return Column(
       children: widget.filterListPosition == FilterListPosition.belowButton
           ? children
@@ -122,17 +93,25 @@ class _AwesomeFilterSelectorState extends State<AwesomeFilterSelector> {
 class _FilterPreview extends StatelessWidget {
   final ColorFilter filter;
   final int? textureId;
+  final bool isSelected;
 
   const _FilterPreview({
     required this.filter,
     required this.textureId,
+    required this.isSelected,
   });
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: const BorderRadius.all(Radius.circular(9)),
-      child: SizedBox(
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isSelected ? Colors.blue : Colors.transparent,
+            width: 2,
+          ),
+        ),
         width: 60,
         height: 60,
         child: textureId != null
@@ -144,7 +123,6 @@ class _FilterPreview extends StatelessWidget {
                     fit: BoxFit.cover,
                     child: SizedBox(
                       width: 60,
-                      // TODO: maybe this is inverted on Android ??
                       height: 60 / (9 / 16),
                       child: Texture(textureId: textureId!),
                     ),
